@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "start": "node scripts/serve.mjs",
+    "build": "NODE_ENV=production node scripts/build.mjs",
+    "lint": "node scripts/lint.mjs",
+    "typecheck": "tsc --noEmit --ignoreConfig scripts/typecheck-empty.ts",
+    "check:content": "node scripts/check-content.mjs"
+  },
+  "devDependencies": {}
+}

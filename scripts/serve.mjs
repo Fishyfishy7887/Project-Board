@@ -1,0 +1,3 @@
+import http from 'node:http';import {readFile} from 'node:fs/promises';import {existsSync} from 'node:fs';import {join,extname} from 'node:path';
+const port=process.env.PORT||3000, root='dist'; const types={'.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.js':'text/javascript'};
+http.createServer(async(req,res)=>{let u=decodeURI(req.url.split('?')[0]);let p=join(root,u==='/'?'index.html':u);if(existsSync(p)&&!p.endsWith('/')){}else p=join(root,u,'index.html');try{res.setHeader('Content-Type',types[extname(p)]||'text/plain');res.end(await readFile(p))}catch{res.statusCode=404;res.end('Not found')}}).listen(port,()=>console.log(`Serving http://localhost:${port}`));
