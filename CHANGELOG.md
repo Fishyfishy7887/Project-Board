@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-13 — visual enhancement pass
+- Added lightweight CSS/SVG-style icon badges for audience cards, Side-Hustle Finder inputs, trust cards, and coming-soon product cards.
+- Added a graphical device mockup showing the Side-Hustle Finder on laptop, tablet, and phone screens.
+- Strengthened the How It Works and before/after sections with numbered circles, visual cards, arrows, and subtle gold accents.
+- Added subtle geometric background lines/glow treatments while preserving the black, charcoal, gold, and warm-white brand system.
+
 ## 2026-07-13 — v2 polish pass
 - Added accessible mobile menu button, expandable mobile navigation, keyboard Escape handling, and visible focus states.
 - Rewrote homepage and full FAQ answers so each answer is unique and customer-facing.
