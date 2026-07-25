@@ -1,0 +1,127 @@
+esphome:
+  name: bat-light-wall-switch
+  friendly_name: BAT LIGHT Wall Switch
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "BAT Light Setup"
+    password: !secret fallback_ap_password
+
+captive_portal:
+
+spi:
+  id: lcd_spi
+  clk_pin: GPIO12
+  mosi_pin: GPIO11
+  miso_pin: GPIO13
+
+i2c:
+  id: touch_i2c
+  sda: GPIO5
+  scl: GPIO6
+  frequency: 400kHz
+  scan: true
+
+font:
+  - file: "fonts/DejaVuSans-Bold.ttf"
+    id: button_font
+    size: 44
+
+globals:
+  - id: button_pressed
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+script:
+  - id: clear_touch_feedback
+    mode: restart
+    then:
+      - delay: 180ms
+      - globals.set:
+          id: button_pressed
+          value: "false"
+      - component.update: lcd
+
+display:
+  - platform: mipi_spi
+    id: lcd
+    model: ST7796
+    spi_id: lcd_spi
+    cs_pin: GPIO10
+    dc_pin: GPIO8
+    reset_pin: GPIO9
+    data_rate: 5MHz
+    rotation: 90
+    color_order: bgr
+    invert_colors: true
+    buffer_size: 25%
+    update_interval: 150ms
+    lambda: |-
+      const Color background(8, 16, 28);
+      const Color border(0, 190, 255);
+      const Color pressed_border(255, 190, 0);
+      const Color label(245, 245, 245);
+      const int x = 55;
+      const int y = 60;
+      const int w = 370;
+      const int h = 200;
+
+      it.fill(background);
+      const Color active_border = id(button_pressed) ? pressed_border : border;
+      const int thickness = id(button_pressed) ? 8 : 4;
+      for (int i = 0; i < thickness; i++) {
+        it.rectangle(x + i, y + i, w - (2 * i), h - (2 * i), active_border);
+      }
+      it.print(240, 160, id(button_font), label, TextAlign::CENTER, "BAT LIGHT");
+
+touchscreen:
+  - platform: ft63x6
+    id: panel_touch
+    i2c_id: touch_i2c
+    display: lcd
+    reset_pin: GPIO7
+    interrupt_pin: GPIO4
+    transform:
+      swap_xy: true
+      mirror_x: false
+      mirror_y: true
+
+binary_sensor:
+  - platform: touchscreen
+    id: bat_light_button
+    touchscreen_id: panel_touch
+    x_min: 55
+    x_max: 425
+    y_min: 60
+    y_max: 260
+    on_press:
+      - globals.set:
+          id: button_pressed
+          value: "true"
+      - component.update: lcd
+      - homeassistant.action:
+          action: light.toggle
+          data:
+            entity_id: light.bat_light
+      - script.execute: clear_touch_feedback
