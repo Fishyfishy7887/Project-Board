@@ -1,0 +1,689 @@
+substitutions:
+  side_entrance_entity: "REPLACE_WITH_EXACT_SIDE_ENTRANCE_ENTITY"
+  side_entrance_label: "SIDE ENTRANCE"
+  exterior_1_entity: "REPLACE_WITH_EXACT_EXTERIOR_1_ENTITY"
+  exterior_1_label: "EXTERIOR 1"
+  exterior_2_entity: "REPLACE_WITH_EXACT_EXTERIOR_2_ENTITY"
+  exterior_2_label: "EXTERIOR 2"
+
+esphome:
+  name: downstairs-light-panel
+  friendly_name: Downstairs Light Panel
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+api:
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: none
+  ap:
+    ssid: "Downstairs Panel Setup"
+    password: !secret fallback_ap_password
+
+captive_portal:
+
+spi:
+  id: lcd_spi
+  clk_pin: GPIO12
+  mosi_pin: GPIO11
+  miso_pin: GPIO13
+
+i2c:
+  id: touch_i2c
+  sda: GPIO5
+  scl: GPIO6
+  frequency: 400kHz
+  scan: true
+
+font:
+  - file: "fonts/DejaVuSans-Bold.ttf"
+    id: ui_font
+    size: 18
+  - file: "fonts/DejaVuSans-Bold.ttf"
+    id: small_font
+    size: 13
+
+# page: 0=LIGHTS, 1=DIMMER, 2=COLORS, 3=WHITE, 4=RGB MIX.
+globals:
+  - { id: page, type: int, restore_value: false, initial_value: "0" }
+  - { id: selected, type: int, restore_value: false, initial_value: "0" }
+  - { id: pressed_control, type: int, restore_value: false, initial_value: "-1" }
+  - { id: touch_active, type: bool, restore_value: false, initial_value: "false" }
+  - { id: slider_active, type: bool, restore_value: false, initial_value: "false" }
+  - { id: pending_value, type: int, restore_value: false, initial_value: "50" }
+  - { id: red_value, type: int, restore_value: false, initial_value: "255" }
+  - { id: green_value, type: int, restore_value: false, initial_value: "255" }
+  - { id: blue_value, type: int, restore_value: false, initial_value: "255" }
+  - { id: kelvin_value, type: int, restore_value: false, initial_value: "3500" }
+  - { id: slider_kind, type: int, restore_value: false, initial_value: "-1" }
+
+text_sensor:
+  - platform: homeassistant
+    id: patio_state
+    entity_id: light.patio_light
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_modes
+    entity_id: light.patio_light
+    attribute: supported_color_modes
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_rgb
+    entity_id: light.patio_light
+    attribute: rgb_color
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_b_state
+    entity_id: light.patio_light_b
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_b_modes
+    entity_id: light.patio_light_b
+    attribute: supported_color_modes
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_b_rgb
+    entity_id: light.patio_light_b
+    attribute: rgb_color
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: truck_bay_state
+    entity_id: light.truck_bay_light
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: truck_bay_modes
+    entity_id: light.truck_bay_light
+    attribute: supported_color_modes
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: truck_bay_rgb
+    entity_id: light.truck_bay_light
+    attribute: rgb_color
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_state
+    entity_id: light.car_bay_light
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_modes
+    entity_id: light.car_bay_light
+    attribute: supported_color_modes
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_rgb
+    entity_id: light.car_bay_light
+    attribute: rgb_color
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_back_state
+    entity_id: light.car_bay_back
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_back_modes
+    entity_id: light.car_bay_back
+    attribute: supported_color_modes
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_back_rgb
+    entity_id: light.car_bay_back
+    attribute: rgb_color
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: side_entrance_state
+    entity_id: ${side_entrance_entity}
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: side_entrance_modes
+    entity_id: ${side_entrance_entity}
+    attribute: supported_color_modes
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: side_entrance_rgb
+    entity_id: ${side_entrance_entity}
+    attribute: rgb_color
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_1_state
+    entity_id: ${exterior_1_entity}
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_1_modes
+    entity_id: ${exterior_1_entity}
+    attribute: supported_color_modes
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_1_rgb
+    entity_id: ${exterior_1_entity}
+    attribute: rgb_color
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_2_state
+    entity_id: ${exterior_2_entity}
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_2_modes
+    entity_id: ${exterior_2_entity}
+    attribute: supported_color_modes
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_2_rgb
+    entity_id: ${exterior_2_entity}
+    attribute: rgb_color
+    on_value:
+      - component.update: lcd
+
+sensor:
+  - platform: homeassistant
+    id: patio_brightness
+    entity_id: light.patio_light
+    attribute: brightness
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_kelvin
+    entity_id: light.patio_light
+    attribute: color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_min_kelvin
+    entity_id: light.patio_light
+    attribute: min_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_max_kelvin
+    entity_id: light.patio_light
+    attribute: max_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_b_brightness
+    entity_id: light.patio_light_b
+    attribute: brightness
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_b_kelvin
+    entity_id: light.patio_light_b
+    attribute: color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_b_min_kelvin
+    entity_id: light.patio_light_b
+    attribute: min_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: patio_b_max_kelvin
+    entity_id: light.patio_light_b
+    attribute: max_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: truck_bay_brightness
+    entity_id: light.truck_bay_light
+    attribute: brightness
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: truck_bay_kelvin
+    entity_id: light.truck_bay_light
+    attribute: color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: truck_bay_min_kelvin
+    entity_id: light.truck_bay_light
+    attribute: min_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: truck_bay_max_kelvin
+    entity_id: light.truck_bay_light
+    attribute: max_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_brightness
+    entity_id: light.car_bay_light
+    attribute: brightness
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_kelvin
+    entity_id: light.car_bay_light
+    attribute: color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_min_kelvin
+    entity_id: light.car_bay_light
+    attribute: min_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_max_kelvin
+    entity_id: light.car_bay_light
+    attribute: max_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_back_brightness
+    entity_id: light.car_bay_back
+    attribute: brightness
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_back_kelvin
+    entity_id: light.car_bay_back
+    attribute: color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_back_min_kelvin
+    entity_id: light.car_bay_back
+    attribute: min_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: car_bay_back_max_kelvin
+    entity_id: light.car_bay_back
+    attribute: max_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: side_entrance_brightness
+    entity_id: ${side_entrance_entity}
+    attribute: brightness
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: side_entrance_kelvin
+    entity_id: ${side_entrance_entity}
+    attribute: color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: side_entrance_min_kelvin
+    entity_id: ${side_entrance_entity}
+    attribute: min_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: side_entrance_max_kelvin
+    entity_id: ${side_entrance_entity}
+    attribute: max_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_1_brightness
+    entity_id: ${exterior_1_entity}
+    attribute: brightness
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_1_kelvin
+    entity_id: ${exterior_1_entity}
+    attribute: color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_1_min_kelvin
+    entity_id: ${exterior_1_entity}
+    attribute: min_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_1_max_kelvin
+    entity_id: ${exterior_1_entity}
+    attribute: max_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_2_brightness
+    entity_id: ${exterior_2_entity}
+    attribute: brightness
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_2_kelvin
+    entity_id: ${exterior_2_entity}
+    attribute: color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_2_min_kelvin
+    entity_id: ${exterior_2_entity}
+    attribute: min_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+  - platform: homeassistant
+    id: exterior_2_max_kelvin
+    entity_id: ${exterior_2_entity}
+    attribute: max_color_temp_kelvin
+    on_value:
+      - component.update: lcd
+
+script:
+  - id: clear_feedback
+    mode: restart
+    then:
+      - delay: 180ms
+      - globals.set: { id: pressed_control, value: "-1" }
+      - component.update: lcd
+
+  - id: set_feedback
+    parameters: { control: int }
+    then:
+      - lambda: id(pressed_control) = control;
+      - component.update: lcd
+      - script.execute: clear_feedback
+
+  - id: toggle_selected
+    then:
+      - if:
+          condition:
+            lambda: |-
+              switch (id(selected)) {
+                case 0: return id(patio_state).state != "unavailable" && id(patio_state).state != "unknown";
+                case 1: return id(patio_b_state).state != "unavailable" && id(patio_b_state).state != "unknown";
+                case 2: return id(truck_bay_state).state != "unavailable" && id(truck_bay_state).state != "unknown";
+                case 3: return id(car_bay_state).state != "unavailable" && id(car_bay_state).state != "unknown";
+                case 4: return id(car_bay_back_state).state != "unavailable" && id(car_bay_back_state).state != "unknown";
+                case 5: return id(side_entrance_state).state != "unavailable" && id(side_entrance_state).state != "unknown";
+                case 6: return id(exterior_1_state).state != "unavailable" && id(exterior_1_state).state != "unknown";
+                case 7: return id(exterior_2_state).state != "unavailable" && id(exterior_2_state).state != "unknown";
+                default: return false;
+              }
+          then:
+            - homeassistant.action:
+                action: light.toggle
+                data:
+                  entity_id: !lambda |-
+                    static const char *entities[] = {"light.patio_light", "light.patio_light_b", "light.truck_bay_light", "light.car_bay_light", "light.car_bay_back", "${side_entrance_entity}", "${exterior_1_entity}", "${exterior_2_entity}"};
+                    return entities[id(selected)];
+
+  - id: group_power
+    parameters: { turn_on: bool }
+    then:
+      - if:
+          condition:
+            lambda: return id(patio_state).state != "unavailable" && id(patio_state).state != "unknown";
+          then:
+            - homeassistant.action:
+                action: !lambda 'return turn_on ? "light.turn_on" : "light.turn_off";'
+                data: { entity_id: "light.patio_light" }
+      - if:
+          condition:
+            lambda: return id(patio_b_state).state != "unavailable" && id(patio_b_state).state != "unknown";
+          then:
+            - homeassistant.action:
+                action: !lambda 'return turn_on ? "light.turn_on" : "light.turn_off";'
+                data: { entity_id: "light.patio_light_b" }
+      - if:
+          condition:
+            lambda: return id(truck_bay_state).state != "unavailable" && id(truck_bay_state).state != "unknown";
+          then:
+            - homeassistant.action:
+                action: !lambda 'return turn_on ? "light.turn_on" : "light.turn_off";'
+                data: { entity_id: "light.truck_bay_light" }
+      - if:
+          condition:
+            lambda: return id(car_bay_state).state != "unavailable" && id(car_bay_state).state != "unknown";
+          then:
+            - homeassistant.action:
+                action: !lambda 'return turn_on ? "light.turn_on" : "light.turn_off";'
+                data: { entity_id: "light.car_bay_light" }
+      - if:
+          condition:
+            lambda: return id(car_bay_back_state).state != "unavailable" && id(car_bay_back_state).state != "unknown";
+          then:
+            - homeassistant.action:
+                action: !lambda 'return turn_on ? "light.turn_on" : "light.turn_off";'
+                data: { entity_id: "light.car_bay_back" }
+      - if:
+          condition:
+            lambda: return id(side_entrance_state).state != "unavailable" && id(side_entrance_state).state != "unknown";
+          then:
+            - homeassistant.action:
+                action: !lambda 'return turn_on ? "light.turn_on" : "light.turn_off";'
+                data: { entity_id: "${side_entrance_entity}" }
+      - if:
+          condition:
+            lambda: return id(exterior_1_state).state != "unavailable" && id(exterior_1_state).state != "unknown";
+          then:
+            - homeassistant.action:
+                action: !lambda 'return turn_on ? "light.turn_on" : "light.turn_off";'
+                data: { entity_id: "${exterior_1_entity}" }
+      - if:
+          condition:
+            lambda: return id(exterior_2_state).state != "unavailable" && id(exterior_2_state).state != "unknown";
+          then:
+            - homeassistant.action:
+                action: !lambda 'return turn_on ? "light.turn_on" : "light.turn_off";'
+                data: { entity_id: "${exterior_2_entity}" }
+
+  - id: send_brightness
+    then:
+      - homeassistant.action:
+          action: light.turn_on
+          data:
+            entity_id: !lambda |-
+              static const char *entities[] = {"light.patio_light", "light.patio_light_b", "light.truck_bay_light", "light.car_bay_light", "light.car_bay_back", "${side_entrance_entity}", "${exterior_1_entity}", "${exterior_2_entity}"};
+              return entities[id(selected)];
+            brightness_pct: !lambda 'return to_string(id(pending_value));'
+
+  - id: send_rgb
+    then:
+      - homeassistant.action:
+          action: light.turn_on
+          data:
+            entity_id: !lambda |-
+              static const char *entities[] = {"light.patio_light", "light.patio_light_b", "light.truck_bay_light", "light.car_bay_light", "light.car_bay_back", "${side_entrance_entity}", "${exterior_1_entity}", "${exterior_2_entity}"};
+              return entities[id(selected)];
+            rgb_color: !lambda |-
+              return str_sprintf("[%d,%d,%d]", id(red_value), id(green_value), id(blue_value));
+
+  - id: send_kelvin
+    then:
+      - lambda: |-
+          float mins[] = {id(patio_min_kelvin).state,id(patio_b_min_kelvin).state,id(truck_bay_min_kelvin).state,id(car_bay_min_kelvin).state,id(car_bay_back_min_kelvin).state,id(side_entrance_min_kelvin).state,id(exterior_1_min_kelvin).state,id(exterior_2_min_kelvin).state};
+          float maxs[] = {id(patio_max_kelvin).state,id(patio_b_max_kelvin).state,id(truck_bay_max_kelvin).state,id(car_bay_max_kelvin).state,id(car_bay_back_max_kelvin).state,id(side_entrance_max_kelvin).state,id(exterior_1_max_kelvin).state,id(exterior_2_max_kelvin).state};
+          int n=id(selected); int low=isnan(mins[n])?2000:(int)mins[n]; int high=isnan(maxs[n])?6500:(int)maxs[n];
+          id(kelvin_value)=std::max(low,std::min(high,id(kelvin_value)));
+      - homeassistant.action:
+          action: light.turn_on
+          data:
+            entity_id: !lambda |-
+              static const char *entities[] = {"light.patio_light", "light.patio_light_b", "light.truck_bay_light", "light.car_bay_light", "light.car_bay_back", "${side_entrance_entity}", "${exterior_1_entity}", "${exterior_2_entity}"};
+              return entities[id(selected)];
+            color_temp_kelvin: !lambda 'return to_string(id(kelvin_value));'
+
+display:
+  - platform: mipi_spi
+    id: lcd
+    model: ST7796
+    spi_id: lcd_spi
+    cs_pin: GPIO10
+    dc_pin: GPIO8
+    reset_pin: GPIO9
+    data_rate: 5MHz
+    rotation: 90
+    color_order: bgr
+    invert_colors: true
+    buffer_size: 25%
+    update_interval: 500ms
+    lambda: |-
+      const Color bg(8,16,28), cyan(0,190,255), amber(255,190,0), white(245,245,245), red(255,70,70), gray(115,125,135);
+      const char *labels[] = {"PATIO","PATIO B","TRUCK BAY","CAR BAY","CAR BAY BACK","${side_entrance_label}","${exterior_1_label}","${exterior_2_label}"};
+      const std::string states[] = {id(patio_state).state,id(patio_b_state).state,id(truck_bay_state).state,id(car_bay_state).state,id(car_bay_back_state).state,id(side_entrance_state).state,id(exterior_1_state).state,id(exterior_2_state).state};
+      const std::string modes[] = {id(patio_modes).state,id(patio_b_modes).state,id(truck_bay_modes).state,id(car_bay_modes).state,id(car_bay_back_modes).state,id(side_entrance_modes).state,id(exterior_1_modes).state,id(exterior_2_modes).state};
+      const float brightness[] = {id(patio_brightness).state,id(patio_b_brightness).state,id(truck_bay_brightness).state,id(car_bay_brightness).state,id(car_bay_back_brightness).state,id(side_entrance_brightness).state,id(exterior_1_brightness).state,id(exterior_2_brightness).state};
+      auto box = [&](int x,int y,int w,int h,const char *text,int control,Color color=cyan) {
+        int thick = id(pressed_control)==control ? 5 : 2;
+        for(int i=0;i<thick;i++) it.rectangle(x+i,y+i,w-2*i,h-2*i,id(pressed_control)==control?amber:color);
+        it.print(x+w/2,y+h/2,id(small_font),white,TextAlign::CENTER,text);
+      };
+      it.fill(bg);
+      int visible_page = id(page)==4 ? 2 : id(page);
+      const char *nav[] = {"LIGHTS","DIMMER","COLORS","WHITE"};
+      for(int n=0;n<4;n++) {
+        int thick=n==visible_page?4:1;
+        for(int i=0;i<thick;i++) it.rectangle(n*120+i,280+i,120-2*i,40-2*i,n==visible_page?amber:cyan);
+        it.print(n*120+60,300,id(small_font),white,TextAlign::CENTER,nav[n]);
+      }
+      if(id(page)==0) {
+        for(int n=0;n<8;n++) {
+          int x=(n%2)*235+5, y=5+(n/2)*52;
+          Color c=states[n]=="on"?amber:(states[n]=="unavailable"||states[n]=="unknown"?gray:cyan);
+          int thick=id(pressed_control)==n?5:2;
+          for(int i=0;i<thick;i++) it.rectangle(x+i,y+i,230-2*i,47-2*i,id(pressed_control)==n?white:c);
+          const char *shown=states[n]=="on"?"ON":states[n]=="off"?"OFF":states[n]=="unavailable"?"UNAVAILABLE":"UNKNOWN";
+          it.printf(x+115,y+14,id(small_font),white,TextAlign::CENTER,"%s",labels[n]);
+          it.printf(x+115,y+33,id(small_font),c,TextAlign::CENTER,"%s",shown);
+        }
+        box(5,220,230,50,"ALL ON",20); box(245,220,230,50,"ALL OFF",21,red);
+      } else if(id(page)==1) {
+        int s=id(selected); bool capable=modes[s].find("brightness")!=std::string::npos || modes[s].find("rgb")!=std::string::npos || modes[s].find("color_temp")!=std::string::npos;
+        it.printf(240,22,id(ui_font),white,TextAlign::CENTER,"%s",labels[s]);
+        box(10,48,105,42,"PREVIOUS",30); box(365,48,105,42,"NEXT",31);
+        int pct=id(slider_active)?id(pending_value):(isnan(brightness[s])?0:(int)roundf(brightness[s]*100.0f/255.0f));
+        it.printf(240,75,id(ui_font),capable?white:gray,TextAlign::CENTER,capable?"%d%%":"NOT DIMMABLE",pct);
+        it.rectangle(40,115,400,42,cyan); it.filled_rectangle(44,119,(392*pct)/100,34,amber);
+        box(80,180,130,55,"-10%",32); box(270,180,130,55,"+10%",33);
+      } else if(id(page)==2) {
+        int s=id(selected); bool capable=modes[s].find("rgb")!=std::string::npos;
+        it.printf(240,20,id(ui_font),capable?white:gray,TextAlign::CENTER,"%s%s",labels[s],capable?"":" - NO RGB");
+        box(5,42,100,42,"PREVIOUS",40); box(375,42,100,42,"NEXT",41); box(190,42,100,42,"RGB MIX",42);
+        const char *names[]={"RED","BLUE","GREEN","PURPLE","ORANGE","CYAN","PINK","WHITE"};
+        for(int n=0;n<8;n++) box(10+(n%4)*117,95+(n/4)*75,108,60,names[n],43+n);
+      } else if(id(page)==4) {
+        int s=id(selected); it.printf(240,18,id(ui_font),white,TextAlign::CENTER,"RGB MIX - %s",labels[s]);
+        box(10,40,100,38,"PREVIOUS",60); box(370,40,100,38,"NEXT",61); box(190,40,100,38,"PRESETS",62);
+        const int vals[]={id(red_value),id(green_value),id(blue_value)}; const char *names[]={"R","G","B"}; const Color cols[]={red,Color(60,255,80),Color(50,110,255)};
+        for(int n=0;n<3;n++){ int y=92+n*56; it.printf(25,y+18,id(ui_font),cols[n],TextAlign::CENTER,names[n]); it.rectangle(50,y,360,38,cyan); it.filled_rectangle(54,y+4,(352*vals[n])/255,30,cols[n]); it.printf(455,y+18,id(small_font),white,TextAlign::CENTER,"%d",vals[n]); }
+      } else {
+        int s=id(selected); bool capable=modes[s].find("color_temp")!=std::string::npos;
+        it.printf(240,20,id(ui_font),capable?white:gray,TextAlign::CENTER,"%s%s",labels[s],capable?"":" - WHITE UNSUPPORTED");
+        box(10,48,105,42,"PREVIOUS",70); box(365,48,105,42,"NEXT",71);
+        const char *names[]={"WARM","SOFT","NEUTRAL","COOL","DAYLIGHT"};
+        for(int n=0;n<5;n++) box(5+n*95,105,90,48,names[n],72+n);
+        it.rectangle(40,180,400,42,cyan);
+        int pos=(id(kelvin_value)-2000)*392/4500; if(pos<0)pos=0;if(pos>392)pos=392;
+        it.filled_rectangle(44,184,pos,34,amber); it.printf(240,245,id(ui_font),white,TextAlign::CENTER,"%d K",id(kelvin_value));
+      }
+
+touchscreen:
+  - platform: ft63x6
+    id: panel_touch
+    i2c_id: touch_i2c
+    display: lcd
+    reset_pin: GPIO7
+    interrupt_pin: GPIO4
+    transform:
+      swap_xy: true
+      mirror_x: false
+      mirror_y: true
+    on_touch:
+      then:
+        - lambda: |-
+            if (id(touch_active)) return;
+            id(touch_active)=true;
+            int x=touch.x, y=touch.y;
+            auto modes = [&](int n)->std::string { switch(n) {
+              case 0:return id(patio_modes).state; case 1:return id(patio_b_modes).state; case 2:return id(truck_bay_modes).state; case 3:return id(car_bay_modes).state; case 4:return id(car_bay_back_modes).state; case 5:return id(side_entrance_modes).state; case 6:return id(exterior_1_modes).state; default:return id(exterior_2_modes).state; }};
+            auto state = [&](int n)->std::string { switch(n) {
+              case 0:return id(patio_state).state; case 1:return id(patio_b_state).state; case 2:return id(truck_bay_state).state; case 3:return id(car_bay_state).state; case 4:return id(car_bay_back_state).state; case 5:return id(side_entrance_state).state; case 6:return id(exterior_1_state).state; default:return id(exterior_2_state).state; }};
+            auto valid = [&](int n,const char *cap)->bool {
+              auto m=modes(n); bool supported=m.find(cap)!=std::string::npos;
+              if(std::string(cap)=="brightness") supported=supported || m.find("rgb")!=std::string::npos || m.find("color_temp")!=std::string::npos || m.find("white")!=std::string::npos;
+              return state(n)!="unavailable" && state(n)!="unknown" && supported;
+            };
+            auto cycle = [&](int delta,const char *cap) { for(int k=1;k<=8;k++){int n=(id(selected)+delta*k+80)%8;if(valid(n,cap)){id(selected)=n;break;}} };
+            if(y>=280) { id(page)=x<120?0:x<240?1:x<360?2:3; id(pressed_control)=90+id(page); id(slider_active)=false; id(lcd).update(); id(clear_feedback).execute(); return; }
+            if(id(page)==0) {
+              if(y>=5 && y<213) { int row=(y-5)/52; int col=x>=240; if(row<4 && (x<235 || x>=240)){id(selected)=row*2+col; id(pressed_control)=id(selected); id(toggle_selected).execute(); id(clear_feedback).execute();} }
+              else if(y>=220&&y<270&&x<235){id(pressed_control)=20;id(group_power).execute(true);id(clear_feedback).execute();}
+              else if(y>=220&&y<270&&x>=245){id(pressed_control)=21;id(group_power).execute(false);id(clear_feedback).execute();}
+            } else if(id(page)==1) {
+              if(y>=48&&y<90&&x<115){cycle(-1,"brightness");id(pressed_control)=30;id(clear_feedback).execute();}
+              else if(y>=48&&y<90&&x>=365){cycle(1,"brightness");id(pressed_control)=31;id(clear_feedback).execute();}
+              else if(y>=115&&y<157&&x>=40&&x<440&&valid(id(selected),"brightness")){id(pending_value)=std::max(1,std::min(100,(x-40)*100/400));id(slider_active)=true;id(slider_kind)=0;}
+              else if(y>=180&&y<235&&x>=80&&x<210&&valid(id(selected),"brightness")){id(pending_value)=std::max(1,id(pending_value)-10);id(send_brightness).execute();id(pressed_control)=32;id(clear_feedback).execute();}
+              else if(y>=180&&y<235&&x>=270&&x<400&&valid(id(selected),"brightness")){id(pending_value)=std::min(100,id(pending_value)+10);id(send_brightness).execute();id(pressed_control)=33;id(clear_feedback).execute();}
+            } else if(id(page)==2) {
+              if(y>=42&&y<84&&x<105){cycle(-1,"rgb");id(pressed_control)=40;id(clear_feedback).execute();}
+              else if(y>=42&&y<84&&x>=375){cycle(1,"rgb");id(pressed_control)=41;id(clear_feedback).execute();}
+              else if(y>=42&&y<84&&x>=190&&x<290&&valid(id(selected),"rgb")){id(page)=4;id(pressed_control)=42;id(clear_feedback).execute();}
+              else if(y>=95&&y<230&&valid(id(selected),"rgb")){int col=x/117,row=(y-95)/75,n=row*4+col;if(col<4&&n<8){const int rgb[][3]={{255,0,0},{0,0,255},{0,255,0},{128,0,255},{255,90,0},{0,255,255},{255,0,120},{255,255,255}};id(red_value)=rgb[n][0];id(green_value)=rgb[n][1];id(blue_value)=rgb[n][2];id(send_rgb).execute();id(pressed_control)=43+n;id(clear_feedback).execute();}}
+            } else if(id(page)==4) {
+              if(y>=40&&y<78&&x<110){cycle(-1,"rgb");id(pressed_control)=60;id(clear_feedback).execute();}
+              else if(y>=40&&y<78&&x>=370){cycle(1,"rgb");id(pressed_control)=61;id(clear_feedback).execute();}
+              else if(y>=40&&y<78&&x>=190&&x<290){id(page)=2;id(pressed_control)=62;id(clear_feedback).execute();}
+              else if(x>=50&&x<410){for(int n=0;n<3;n++){int sy=92+n*56;if(y>=sy&&y<sy+38){int v=std::max(0,std::min(255,(x-50)*255/360));if(n==0)id(red_value)=v;else if(n==1)id(green_value)=v;else id(blue_value)=v;id(slider_active)=true;id(slider_kind)=n+1;}}}
+            } else {
+              if(y>=48&&y<90&&x<115){cycle(-1,"color_temp");id(pressed_control)=70;id(clear_feedback).execute();}
+              else if(y>=48&&y<90&&x>=365){cycle(1,"color_temp");id(pressed_control)=71;id(clear_feedback).execute();}
+              else if(y>=105&&y<153&&valid(id(selected),"color_temp")){int n=x/95;if(n<5){const int ks[]={2200,2700,3500,4500,6000};id(kelvin_value)=ks[n];id(send_kelvin).execute();id(pressed_control)=72+n;id(clear_feedback).execute();}}
+              else if(y>=180&&y<222&&x>=40&&x<440&&valid(id(selected),"color_temp")){id(kelvin_value)=2000+(x-40)*4500/400;id(slider_active)=true;id(slider_kind)=4;}
+            }
+            id(lcd).update();
+    on_update:
+      then:
+        - lambda: |-
+            if (!id(slider_active) || touches.empty()) return;
+            int x=touches[0].x, y=touches[0].y;
+            if(id(slider_kind)==0 && y>=105 && y<167) id(pending_value)=std::max(1,std::min(100,(x-40)*100/400));
+            else if(id(slider_kind)>=1 && id(slider_kind)<=3) {
+              int v=std::max(0,std::min(255,(x-50)*255/360));
+              if(id(slider_kind)==1) id(red_value)=v; else if(id(slider_kind)==2) id(green_value)=v; else id(blue_value)=v;
+            } else if(id(slider_kind)==4 && y>=170 && y<232) id(kelvin_value)=std::max(2000,std::min(6500,2000+(x-40)*4500/400));
+            id(lcd).update();
+    on_release:
+      then:
+        - lambda: |-
+            if(id(slider_active)) {
+              if(id(slider_kind)==0) id(send_brightness).execute();
+              else if(id(slider_kind)>=1&&id(slider_kind)<=3) id(send_rgb).execute();
+              else if(id(slider_kind)==4) id(send_kelvin).execute();
+            }
+            id(slider_active)=false; id(slider_kind)=-1; id(touch_active)=false; id(lcd).update();
